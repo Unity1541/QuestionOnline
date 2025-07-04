@@ -2,7 +2,7 @@
 // Replace with your Firebase project's configuration object.
 // You can find this in your Firebase project settings (Project Overview > Project settings > General > Your apps > SDK setup and configuration).
 const firebaseConfig = {
-  apiKey: "AIzaSyBTWj_SpVOECBKRyjJNEeBwn0GfrmA1CNs", // 這是範例，您應該用您自己的
+  apiKey: "AIzaSyBTWj_SpVOECBKRyjJNEeBwn0GfrmA1CNs", // 已替換為您提供的 apiKey
   authDomain: "questionapp-10616.firebaseapp.com",
   projectId: "questionapp-10616",
   storageBucket: "questionapp-10616.appspot.com",
@@ -11,310 +11,579 @@ const firebaseConfig = {
   measurementId: "G-2NYGTX6HVJ" // 這個通常是可選的
 };
 
-// SVG Icons (as strings) - remain the same
-const CheckCircleIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-const XCircleIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 flex-shrink-0"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
-
+// ================================
+// 全域變數
+// ================================
+let db;
 let questions = [];
 let currentQuestionIndex = 0;
-let userAnswers = new Map();
 let score = 0;
-let db; // Firebase Firestore instance
+let timeLeft = 60;
+let timer = null;
+let selectedAnswer = null;
+let isFirebaseConfigured = false;
+let userAnswers = []; // 儲存使用者的答案
 
-// DOM Elements - remain the same
-let loadingStateEl, questionSectionEl, resultsSectionEl;
-let progressTextEl, progressBarEl;
-let questionDisplayAreaEl, questionTextEl, optionsContainerEl;
-let prevBtn, nextBtn, finishBtn, restartBtn;
-let feedbackMessageEl, scoreDisplayEl, percentageDisplayEl, detailedResultsContainerEl;
+// DOM 元素引用
+const bgAnimation = document.getElementById('bgAnimation');
+const firebaseConfigDiv = document.getElementById('firebaseConfig');
+const statsBar = document.getElementById('statsBar');
+const timerDisplay = document.getElementById('timer');
+const scoreDisplay = document.getElementById('score');
+const levelBadge = document.getElementById('level');
+const progressDisplay = document.getElementById('progress');
+const loadingDiv = document.getElementById('loading');
+const errorDiv = document.getElementById('error');
+const questionContainer = document.getElementById('questionContainer');
+const questionNumberDisplay = document.getElementById('questionNumber');
+const questionTextDisplay = document.getElementById('questionText');
+const optionsContainer = document.getElementById('options');
+const controlsDiv = document.getElementById('controls');
+const startBtn = document.getElementById('startBtn');
+const nextBtn = document.getElementById('nextBtn');
+const restartBtn = document.getElementById('restartBtn');
+const resultDiv = document.getElementById('result');
+const finalScoreDisplay = document.getElementById('finalScore');
+const resultMessageDisplay = document.getElementById('resultMessage');
+const finalLevelDisplay = document.getElementById('finalLevel');
+const toggleAnswersBtn = document.getElementById('toggleAnswersBtn');
+const restartQuizBtn2 = document.getElementById('restartQuizBtn2'); // 新增第二個重新開始按鈕
+const answersReview = document.getElementById('answersReview');
+const answersContent = document.getElementById('answersContent');
 
-document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize DOM Elements
-  loadingStateEl = document.getElementById('loading-state');
-  questionSectionEl = document.getElementById('question-section');
-  resultsSectionEl = document.getElementById('results-section');
-  
-  progressTextEl = document.getElementById('progress-text');
-  progressBarEl = document.getElementById('progress-bar');
-  
-  questionDisplayAreaEl = document.getElementById('question-display-area');
-  questionTextEl = document.getElementById('question-text');
-  optionsContainerEl = document.getElementById('options-container');
-  
-  prevBtn = document.getElementById('prev-btn');
-  nextBtn = document.getElementById('next-btn');
-  finishBtn = document.getElementById('finish-btn');
-  restartBtn = document.getElementById('restart-btn');
-  
-  feedbackMessageEl = document.getElementById('feedback-message');
-  scoreDisplayEl = document.getElementById('score-display');
-  percentageDisplayEl = document.getElementById('percentage-display');
-  detailedResultsContainerEl = document.getElementById('detailed-results-container');
 
-  document.getElementById('current-year').textContent = new Date().getFullYear();
+// 等級系統
+const levels = [
+    { name: "初心者", minScore: 0, color: "#9ca3af" },
+    { name: "見習生", minScore: 20, color: "#10b981" },
+    { name: "中級者", minScore: 40, color: "#3b82f6" },
+    { name: "上級者", minScore: 60, color: "#8b5cf6" },
+    { name: "專家", minScore: 80, color: "#f59e0b" },
+    { name: "大師", minScore: 95, color: "#ef4444" }
+];
 
-  // Add event listeners
-  prevBtn.addEventListener('click', handlePreviousQuestion);
-  nextBtn.addEventListener('click', handleNextQuestion);
-  finishBtn.addEventListener('click', handleSubmitQuiz);
-  restartBtn.addEventListener('click', handleRestartQuiz);
-
-  // Initialize Firebase and fetch questions
-  try {
-    loadingStateEl.innerHTML = '<p class="text-purple-600 text-2xl">Initializing Firebase & Fetching quiz...</p>';
-    
-    // Check if Firebase config placeholder is still there
-    if (firebaseConfig.apiKey === "YOUR_API_KEY" || !firebaseConfig.projectId) {
-        throw new Error("Firebase configuration is missing or incomplete in script.js. Please replace placeholder values with your actual Firebase project config.");
+// 範例題目（當 Firebase 無法使用時的後備）
+const sampleQuestions = [
+    {
+        text: "以下哪部動畫是宮崎駿執導的作品？",
+        options: {A: "龍貓", B: "你的名字", C: "鬼滅之刃", D: "進擊的巨人"},
+        answer: "A", 
+        explanation: "《龍貓》是宮崎駿在1988年執導的經典動畫電影，是吉卜力工作室的代表作品之一。"
+    },
+    {
+        text: "《火影忍者》中主角的名字是？",
+        options: {A: "漩渦鳴人", B: "宇智波佐助", C: "春野櫻", D: "旗木卡卡西"},
+        answer: "A", 
+        explanation: "漩渦鳴人是《火影忍者》的主角，夢想成為火影，擁有九尾妖狐的力量。"
+    },
+    {
+        text: "《航海王》的作者是誰？",
+        options: {A: "鳥山明", B: "尾田榮一郎", C: "岸本齊史", D: "久保帶人"},
+        answer: "B",
+        explanation: "尾田榮一郎是《航海王》(One Piece)的作者，這部作品自1997年開始連載至今。"
+    },
+    {
+        text: "以下哪部作品不是吉卜力工作室製作的？",
+        options: {A: "天空之城", B: "魔女宅急便", C: "你的名字", D: "風之谷"},
+        answer: "C",
+        explanation: "《你的名字》是由新海誠執導的作品，由CoMix Wave Films製作，不是吉卜力工作室的作品。"
+    },
+    {
+        text: "《鬼滅之刃》中炭治郎使用的呼吸法是？",
+        options: {A: "水之呼吸", B: "火之呼吸", C: "風之呼吸", D: "日之呼吸"},
+        answer: "A",
+        explanation: "炭治郎最初學習的是水之呼吸，後來覺醒了日之呼吸，但水之呼吸是他的基礎招式。"
     }
+];
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore(); // Get Firestore instance
+// 將 Firebase 的答案字母 (A, B, C, D) 轉換為索引 (0, 1, 2, 3)
+const answerMap = {
+    "A": 0,
+    "B": 1,
+    "C": 2,
+    "D": 3
+};
 
-    questions = await fetchQuestionsFromFirebase();
-    
-    if (questions.length > 0) {
-      loadingStateEl.classList.add('hidden');
-      questionSectionEl.classList.remove('hidden');
-      questionSectionEl.classList.add('animate-fadeIn');
-      startQuiz();
-    } else {
-      loadingStateEl.innerHTML = '<p class="text-red-500 text-2xl">No questions found in Firebase.</p><p class="text-gray-600 text-sm mt-2">This could be due to an empty "questions" collection in Firestore, incorrect data structure, or all question documents having issues (e.g., missing fields, correct answer not matching any option).</p><p class="text-gray-500 text-sm mt-1">Please check your Firestore "questions" collection, ensure documents have "text", "options" (array), and "correctAnswer" fields, and that the correctAnswer exactly matches an option.</p>';
-    }
-  } catch (error) {
-    console.error("Error initializing quiz with Firebase:", error);
-    loadingStateEl.innerHTML = `<p class="text-red-500 text-2xl">Failed to load quiz from Firebase.</p><p class="text-gray-600 text-sm mt-2">${error.message}</p><p class="text-gray-500 text-sm mt-1">Please ensure your Firebase configuration in script.js is correct, Firestore is set up, and the "questions" collection exists with the correct data structure and security rules allowing reads.</p>`;
-  }
+// ================================
+// 事件監聽器 (當 DOM 內容載入完成後)
+// ================================
+document.addEventListener('DOMContentLoaded', () => {
+    initFirebase();
+    createBackgroundAnimation();
+    checkFirebaseConfig();
+
+    // 為按鈕添加事件監聽器，而不是直接在 HTML 中使用 onclick
+    startBtn.addEventListener('click', startQuiz);
+    nextBtn.addEventListener('click', nextQuestion);
+    restartBtn.addEventListener('click', restartQuiz);
+    toggleAnswersBtn.addEventListener('click', toggleAnswersReview);
+    restartQuizBtn2.addEventListener('click', restartQuiz);
 });
 
-
-async function fetchQuestionsFromFirebase() {
-  if (!db) {
-    throw new Error("Firestore is not initialized.");
-  }
-  const snapshot = await db.collection('Questions').orderBy('id').get();
-
-  if (snapshot.empty) {
-    console.warn('No documents in Firestore "questions" collection.');
-    return [];
-  }
-
-  const questionsArray = [];
-  snapshot.forEach(doc => {
-    const data = doc.data();
-
-    // --- 彈性處理欄位 ---
-    // 1. 題目文字
-    const text = data.text ?? data.question ?? "";
-    // 2. 選項：允許字串或真正的陣列
-    let options = [];
-    if (Array.isArray(data.options)) {
-      options = data.options;
-    } else if (typeof data.options === 'string') {
-      // 逗號、分號皆可，用正則拆分並去除空白
-      options = data.options.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+// ================================
+// 初始化 Firebase
+// ================================
+function initFirebase() {
+    try {
+        if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY" && 
+            firebaseConfig.projectId && firebaseConfig.projectId !== "YOUR_PROJECT_ID") {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            isFirebaseConfigured = true;
+            console.log("Firebase 初始化成功");
+        } else {
+            console.log("Firebase 配置不完整或為預設值，將使用範例題目模式");
+        }
+    } catch (error) {
+        console.error("Firebase 初始化失敗:", error);
+        showError("Firebase 連接失敗，將使用範例題目。請檢查 console 獲取更多資訊。");
     }
-    // 3. 正確答案：接受 correctAnswer / answer / Answer
-    const correctAnswer = data.correctAnswer ?? data.answer ?? data.answer ?? "";
+}
 
-    // 驗證
-    if (typeof text !== 'string' || text === "") {
-      console.warn(`Document ${doc.id} skipped: 無有效題目文字 (text).`);
-      return;
+// 檢查 Firebase 配置狀態並更新 UI
+function checkFirebaseConfig() {
+    if (isFirebaseConfigured) {
+        firebaseConfigDiv.style.display = 'none';
+        controlsDiv.style.display = 'flex';
+        loadingDiv.style.display = 'none';
+    } else {
+        firebaseConfigDiv.style.display = 'block'; // 保持顯示配置提示
+        controlsDiv.style.display = 'flex';
+        loadingDiv.style.display = 'none';
     }
-    if (options.length === 0) {
-      console.warn(`Document ${doc.id} skipped: options 空或格式不符。`);
-      return;
-    }
-    if (typeof correctAnswer !== 'string' || !options.includes(correctAnswer)) {
-      console.warn(`Document ${doc.id} skipped: correctAnswer "${correctAnswer}" 不在 options 範圍內。`);
-      return;
-    }
+}
 
-    questionsArray.push({
-      id: doc.id,
-      text,
-      options,
-      correctAnswer,
+// ================================
+// 背景動畫
+// ================================
+function createBackgroundAnimation() {
+    const sakuraSymbols = ['🌸', '🌺', '🎋', '🌿', '🍃'];
+    
+    setInterval(() => {
+        if (bgAnimation.querySelectorAll('.sakura').length < 10) {
+            const sakura = document.createElement('div');
+            sakura.className = 'sakura';
+            sakura.textContent = sakuraSymbols[Math.floor(Math.random() * sakuraSymbols.length)];
+            sakura.style.left = Math.random() * 100 + '%';
+            sakura.style.animationDuration = (Math.random() * 5 + 5) + 's';
+            sakura.style.animationDelay = Math.random() * 2 + 's';
+            bgAnimation.appendChild(sakura);
+            
+            setTimeout(() => {
+                if (sakura.parentNode) {
+                    sakura.parentNode.removeChild(sakura);
+                }
+            }, 12000);
+        }
+    }, 1000);
+}
+
+// ================================
+// 測驗邏輯
+// ================================
+async function startQuiz() {
+    try {
+        loadingDiv.style.display = 'block';
+        controlsDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
+        firebaseConfigDiv.style.display = 'none';
+        
+        await loadQuestions();
+        
+        if (questions.length === 0) {
+            throw new Error("沒有找到題目。請確保 Firebase 配置正確且 Firestore 'Questions' 集合中有資料。");
+        }
+        
+        currentQuestionIndex = 0;
+        score = 0;
+        timeLeft = 60;
+        selectedAnswer = null;
+        userAnswers = [];
+        
+        loadingDiv.style.display = 'none';
+        statsBar.style.display = 'flex';
+        questionContainer.style.display = 'block';
+        controlsDiv.style.display = 'flex';
+        nextBtn.style.display = 'inline-block';
+        startBtn.style.display = 'none';
+        restartBtn.style.display = 'none'; // 確保重新開始按鈕隱藏
+
+        startTimer();
+        showQuestion();
+        
+    } catch (error) {
+        console.error("開始測驗失敗:", error);
+        showError("載入題目失敗: " + error.message + "，將使用內建範例題目。");
+        loadingDiv.style.display = 'none';
+        controlsDiv.style.display = 'flex';
+        startBtn.style.display = 'inline-block';
+        nextBtn.style.display = 'none';
+        restartBtn.style.display = 'none';
+    }
+}
+
+async function loadQuestions() {
+    const processedQuestions = [];
+    if (isFirebaseConfigured) {
+        try {
+            const snapshot = await db.collection('Questions').get();
+            const optionKeys = ['A', 'B', 'C', 'D']; // 定義選項順序
+
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                const questionOptions = [];
+                const firestoreOptions = data.options;
+                
+                // 將物件形式的 options 轉換為陣列，並確保順序
+                optionKeys.forEach(key => {
+                    if (firestoreOptions && firestoreOptions[key]) {
+                        questionOptions.push(firestoreOptions[key]);
+                    }
+                });
+
+                // 找到正確答案的索引
+                let correctIndex = -1;
+                const correctAnswerKey = data.answer;
+                if (correctAnswerKey && answerMap.hasOwnProperty(correctAnswerKey)) {
+                    correctIndex = answerMap[correctAnswerKey];
+                }
+
+                // 確保題目、選項和正確答案都有效才加入
+                if (data.text && questionOptions.length === 4 && correctIndex !== -1) { // 假設每題有4個選項
+                    processedQuestions.push({
+                        question: data.text,
+                        options: questionOptions,
+                        correct: correctIndex,
+                        explanation: data.explanation || "暫無解析"
+                    });
+                } else {
+                    console.warn(`跳過無效題目 (ID: ${doc.id}): `, data);
+                }
+            });
+            
+            if (processedQuestions.length === 0) {
+                console.log("Firestore 中沒有有效題目，使用範例題目。");
+                // 處理範例題目以匹配預期格式
+                questions = sampleQuestions.map(q => ({
+                    question: q.text,
+                    options: optionKeys.map(key => q.options[key]),
+                    correct: answerMap[q.answer],
+                    explanation: q.explanation
+                }));
+            } else {
+                questions = processedQuestions;
+            }
+        } catch (error) {
+            console.error("從 Firestore 載入題目失敗:", error);
+            showError("從 Firebase 載入題目失敗，正在使用內建範例題目。");
+            // 處理範例題目以匹配預期格式
+            questions = sampleQuestions.map(q => ({
+                question: q.text,
+                options: optionKeys.map(key => q.options[key]),
+                correct: answerMap[q.answer],
+                explanation: q.explanation
+            }));
+        }
+    } else {
+        // 如果 Firebase 未配置，直接使用範例題目
+        const optionKeys = ['A', 'B', 'C', 'D'];
+        questions = sampleQuestions.map(q => ({
+            question: q.text,
+            options: optionKeys.map(key => q.options[key]),
+            correct: answerMap[q.answer],
+            explanation: q.explanation
+        }));
+    }
+    
+    questions = shuffleArray(questions);
+}
+
+
+function shuffleArray(array) {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+}
+
+function showQuestion() {
+    if (currentQuestionIndex >= questions.length) {
+        endQuiz();
+        return;
+    }
+    
+    const question = questions[currentQuestionIndex];
+    
+    questionNumberDisplay.textContent = 
+        `題目 ${currentQuestionIndex + 1} / ${questions.length}`;
+    questionTextDisplay.textContent = question.question;
+    progressDisplay.textContent = 
+        `${currentQuestionIndex + 1}/${questions.length}`;
+    
+    optionsContainer.innerHTML = '';
+    
+    question.options.forEach((option, index) => {
+        const optionDiv = document.createElement('div');
+        optionDiv.className = 'option';
+        optionDiv.textContent = option;
+        optionDiv.dataset.index = index; // 設置 data-index 以便判斷
+        optionDiv.addEventListener('click', () => selectAnswer(index));
+        optionsContainer.appendChild(optionDiv);
     });
-  });
-  return questionsArray;
-}
-
-
-// --- Rest of the quiz logic remains largely the same ---
-
-function startQuiz() {
-  currentQuestionIndex = 0;
-  userAnswers.clear();
-  score = 0;
-  resultsSectionEl.classList.add('hidden');
-  questionSectionEl.classList.remove('hidden');
-  questionSectionEl.classList.remove('animate-fadeIn'); 
-  void questionSectionEl.offsetWidth; 
-  questionSectionEl.classList.add('animate-fadeIn');
-  displayQuestion();
-}
-
-function displayQuestion() {
-  if (currentQuestionIndex >= questions.length) return;
-
-  const question = questions[currentQuestionIndex];
-  questionTextEl.textContent = question.text;
-  optionsContainerEl.innerHTML = ''; 
-
-  question.options.forEach((option, index) => {
-    const button = document.createElement('button');
-    button.className = `
-      w-full text-left p-4 rounded-lg border-2 transition-all duration-150 ease-in-out
-      focus:outline-none focus:ring-2 focus:ring-purple-400
-      bg-white border-gray-300 text-gray-700 hover:bg-purple-50 hover:border-purple-400
-    `;
-    const optionTextNode = document.createTextNode(option);
-    const charPrefix = String.fromCharCode(65 + index);
-    button.innerHTML = `<span class="font-medium">${charPrefix}. </span>`;
-    button.appendChild(optionTextNode);
     
-    button.onclick = () => handleAnswerSelect(question.id, option);
-
-    if (userAnswers.get(question.id) === option) {
-      button.classList.remove('bg-white', 'border-gray-300', 'text-gray-700', 'hover:bg-purple-50', 'hover:border-purple-400');
-      button.classList.add('bg-purple-500', 'border-purple-600', 'text-white', 'shadow-md', 'transform', 'scale-105');
-    }
-    optionsContainerEl.appendChild(button);
-  });
-  
-  questionDisplayAreaEl.classList.remove('animate-fadeIn');
-  void questionDisplayAreaEl.offsetWidth; 
-  questionDisplayAreaEl.classList.add('animate-fadeIn');
-
-  updateProgress();
-  updateNavigationButtons();
+    selectedAnswer = null;
+    nextBtn.disabled = true;
 }
 
-function handleAnswerSelect(questionId, selectedOption) {
-  userAnswers.set(questionId, selectedOption);
-  displayQuestion(); 
-}
-
-function updateProgress() {
-  progressTextEl.textContent = `Question ${currentQuestionIndex + 1} of ${questions.length}`;
-  const progressPercentage = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
-  progressBarEl.style.width = `${progressPercentage}%`;
-}
-
-function updateNavigationButtons() {
-  prevBtn.disabled = currentQuestionIndex === 0;
-  
-  if (currentQuestionIndex === questions.length - 1) {
-    nextBtn.classList.add('hidden');
-    finishBtn.classList.remove('hidden');
-  } else {
-    nextBtn.classList.remove('hidden');
-    finishBtn.classList.add('hidden');
-  }
-}
-
-function handleNextQuestion() {
-  if (currentQuestionIndex < questions.length - 1) {
-    currentQuestionIndex++;
-    displayQuestion();
-  }
-}
-
-function handlePreviousQuestion() {
-  if (currentQuestionIndex > 0) {
-    currentQuestionIndex--;
-    displayQuestion();
-  }
-}
-
-function handleSubmitQuiz() {
-  score = 0;
-  questions.forEach(question => {
-    if (userAnswers.get(question.id) === question.correctAnswer) {
-      score++;
-    }
-  });
-  displayResults();
-}
-
-function displayResults() {
-  questionSectionEl.classList.add('hidden');
-  resultsSectionEl.classList.remove('hidden');
-  resultsSectionEl.classList.remove('animate-fadeIn'); 
-  void resultsSectionEl.offsetWidth; 
-  resultsSectionEl.classList.add('animate-fadeIn'); 
-
-  const totalQuestions = questions.length;
-  const percentage = totalQuestions > 0 ? Math.round((score / totalQuestions) * 100) : 0;
-  
-  let feedbackMsg = '';
-  let feedbackColorClass = 'text-gray-700';
-
-  if (percentage === 100) {
-    feedbackMsg = "Perfect Score! You're a genius!";
-    feedbackColorClass = 'text-green-600';
-  } else if (percentage >= 75) {
-    feedbackMsg = "Great Job! You really know your stuff!";
-    feedbackColorClass = 'text-blue-600';
-  } else if (percentage >= 50) {
-    feedbackMsg = "Good Effort! Keep learning!";
-    feedbackColorClass = 'text-yellow-600';
-  } else {
-    feedbackMsg = "Keep trying! Practice makes perfect.";
-    feedbackColorClass = 'text-red-600';
-  }
-
-  feedbackMessageEl.textContent = feedbackMsg;
-  feedbackMessageEl.className = `text-xl font-semibold mb-2 ${feedbackColorClass}`; 
-  scoreDisplayEl.textContent = `${score} / ${totalQuestions}`;
-  percentageDisplayEl.textContent = `(${percentage}%)`;
-
-  detailedResultsContainerEl.innerHTML = ''; 
-  questions.forEach((question, index) => {
-    const userAnswer = userAnswers.get(question.id);
-    const isCorrect = userAnswer === question.correctAnswer;
+function selectAnswer(answerIndex) {
+    document.querySelectorAll('.option').forEach(option => {
+        option.classList.remove('selected');
+    });
     
-    const resultDiv = document.createElement('div');
-    resultDiv.className = 'p-4 border border-gray-200 rounded-lg bg-gray-50 animate-fadeIn';
-    resultDiv.style.animationDelay = `${index * 0.05}s`;
-    
-    const questionTextNode = document.createTextNode(`${index + 1}. ${question.text}`);
-    const userAnswerText = userAnswer || 'Not answered';
-    const correctAnswerText = question.correctAnswer;
-
-    let answerHtml = `
-      <p class="font-semibold text-gray-700 mb-2"></p>
-      <p class="flex items-center mb-1 ${isCorrect ? 'text-green-600' : 'text-red-600'}">
-        ${isCorrect ? CheckCircleIconSVG : XCircleIconSVG}
-        Your answer: <span class="font-medium ml-1"></span>
-      </p>
-    `;
-    if (!isCorrect) {
-      answerHtml += `<p class="text-blue-600">Correct answer: <span class="font-medium"></span></p>`;
+    // 透過 data-index 找到對應的選項並標記
+    const selectedOptionDiv = optionsContainer.querySelector(`[data-index="${answerIndex}"]`);
+    if (selectedOptionDiv) {
+        selectedOptionDiv.classList.add('selected');
     }
-    resultDiv.innerHTML = answerHtml;
-    
-    resultDiv.querySelector('.font-semibold.text-gray-700').appendChild(questionTextNode);
-    resultDiv.querySelector(`.${isCorrect ? 'text-green-600' : 'text-red-600'} .font-medium`).textContent = userAnswerText;
-    if (!isCorrect) {
-      resultDiv.querySelector('.text-blue-600 .font-medium').textContent = correctAnswerText;
-    }
-
-    detailedResultsContainerEl.appendChild(resultDiv);
-  });
+    selectedAnswer = answerIndex;
+    nextBtn.disabled = false;
 }
 
-function handleRestartQuiz() {
-  resultsSectionEl.classList.add('hidden');
-  resultsSectionEl.classList.remove('animate-fadeIn'); 
-  
-  questionSectionEl.classList.remove('hidden');
-  questionSectionEl.classList.remove('animate-fadeIn');
-  void questionSectionEl.offsetWidth; 
-  questionSectionEl.classList.add('animate-fadeIn');
-  
-  startQuiz();
+function nextQuestion() {
+    if (selectedAnswer === null) return;
+    
+    const question = questions[currentQuestionIndex];
+    const isCorrect = selectedAnswer === question.correct;
+    
+    userAnswers.push({
+        questionIndex: currentQuestionIndex,
+        question: question.question,
+        options: question.options,
+        userAnswer: selectedAnswer,
+        correctAnswer: question.correct,
+        isCorrect: isCorrect,
+        explanation: question.explanation || "暫無解析"
+    });
+    
+    // 顯示答案反饋
+    document.querySelectorAll('.option').forEach((optionDiv, index) => {
+        optionDiv.removeEventListener('click', () => selectAnswer(index)); // 禁用點擊
+        if (index === question.correct) {
+            optionDiv.classList.add('correct');
+        } else if (index === selectedAnswer && !isCorrect) {
+            optionDiv.classList.add('incorrect');
+        }
+    });
+    
+    if (isCorrect) {
+        score += 20;
+        updateScore();
+    }
+    
+    setTimeout(() => {
+        currentQuestionIndex++;
+        showQuestion();
+    }, 1500);
 }
+
+function updateScore() {
+    scoreDisplay.textContent = score;
+    
+    const currentLevel = getCurrentLevel();
+    levelBadge.textContent = currentLevel.name;
+    levelBadge.style.background = `linear-gradient(45deg, ${currentLevel.color}, #4ecdc4)`;
+}
+
+function getCurrentLevel() {
+    for (let i = levels.length - 1; i >= 0; i--) {
+        if (score >= levels[i].minScore) {
+            return levels[i];
+        }
+    }
+    return levels[0];
+}
+
+function startTimer() {
+    clearInterval(timer);
+    timerDisplay.textContent = timeLeft; // 初始化顯示時間
+    timer = setInterval(() => {
+        timeLeft--;
+        timerDisplay.textContent = timeLeft;
+        
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            endQuiz();
+        }
+    }, 1000);
+}
+
+function endQuiz() {
+    clearInterval(timer);
+    
+    // 將所有未回答的題目也記錄下來
+    while (currentQuestionIndex < questions.length) {
+        const question = questions[currentQuestionIndex];
+        userAnswers.push({
+            questionIndex: currentQuestionIndex,
+            question: question.question,
+            options: question.options,
+            userAnswer: -1, // -1 表示未回答
+            correctAnswer: question.correct,
+            isCorrect: false,
+            explanation: question.explanation || "暫無解析"
+        });
+        currentQuestionIndex++;
+    }
+    
+    statsBar.style.display = 'none';
+    questionContainer.style.display = 'none';
+    controlsDiv.style.display = 'none';
+    
+    const finalLevel = getCurrentLevel();
+    finalScoreDisplay.textContent = score + '分';
+    finalLevelDisplay.textContent = finalLevel.name;
+    finalLevelDisplay.style.background = 
+        `linear-gradient(45deg, ${finalLevel.color}, #4ecdc4)`;
+    
+    let message = "";
+    if (score >= 80) {
+        message = "太厲害了！你是真正的動漫達人！🎉";
+    } else if (score >= 60) {
+        message = "很不錯！你對動漫很有了解！👏";
+    } else if (score >= 40) {
+        message = "還可以！繼續努力學習吧！📚";
+    } else {
+        message = "加油！多看一些動漫作品吧！💪";
+    }
+    
+    resultMessageDisplay.textContent = message;
+    resultDiv.style.display = 'block';
+    
+    generateAnswersReview();
+}
+
+function restartQuiz() {
+    currentQuestionIndex = 0;
+    score = 0;
+    timeLeft = 60;
+    selectedAnswer = null;
+    userAnswers = [];
+    clearInterval(timer); 
+    
+    resultDiv.style.display = 'none';
+    answersReview.style.display = 'none';
+    toggleAnswersBtn.textContent = '查看解答';
+    
+    controlsDiv.style.display = 'flex';
+    startBtn.style.display = 'inline-block';
+    nextBtn.style.display = 'none';
+    restartBtn.style.display = 'none';
+
+    checkFirebaseConfig(); // 重新檢查 Firebase 配置，顯示或隱藏提示
+}
+
+function generateAnswersReview() {
+    answersContent.innerHTML = '';
+    
+    userAnswers.forEach((answer, index) => {
+        const answerDiv = document.createElement('div');
+        answerDiv.className = `answer-item ${answer.isCorrect ? 'correct-answer' : 'wrong-answer'}`;
+        
+        let optionsHtml = '';
+        const optionLetters = ['A', 'B', 'C', 'D']; // 用於顯示選項字母
+
+        // 轉換題目中儲存的 options 陣列為物件形式，方便按字母訪問
+        const currentQuestionOptions = {};
+        answer.options.forEach((opt, i) => {
+            currentQuestionOptions[optionLetters[i]] = opt;
+        });
+
+        optionLetters.forEach((letter, optionIndex) => {
+            let optionText = currentQuestionOptions[letter];
+            let optionClass = 'review-option';
+            let prefix = '';
+            
+            // 如果當前選項是正確答案
+            if (optionIndex === answer.correctAnswer) {
+                optionClass += ' correct-choice';
+                prefix = '✅ ';
+            }
+            
+            // 如果當前選項是使用者選擇的答案
+            if (optionIndex === answer.userAnswer) {
+                if (answer.isCorrect) {
+                    optionClass += ' user-correct';
+                    prefix = '✅ ';
+                } else if (answer.userAnswer !== -1) { // 答錯且不是未回答
+                    optionClass += ' user-choice';
+                    prefix = '❌ ';
+                }
+            }
+            
+            // 如果未回答，但該選項是正確答案，仍然標記為正確（不顯示❌）
+            if (answer.userAnswer === -1 && optionIndex === answer.correctAnswer) {
+                prefix = '✅ ';
+            }
+            
+            optionsHtml += `<div class="${optionClass}">${prefix}${letter}. ${optionText}</div>`;
+        });
+        
+        let statusText = '';
+        let statusClass = '';
+        if (answer.userAnswer === -1) {
+            statusText = '⏰ 未回答';
+            statusClass = 'incorrect';
+        } else if (answer.isCorrect) {
+            statusText = '🎉 回答正確！';
+            statusClass = 'correct';
+        } else {
+            statusText = '💪 答錯了，繼續加油！';
+            statusClass = 'incorrect';
+        }
+        
+        answerDiv.innerHTML = `
+            <div class="review-question">第${index + 1}題：${answer.question}</div>
+            <div class="review-options">${optionsHtml}</div>
+            <div class="answer-status ${statusClass}">${statusText}</div>
+            ${answer.explanation ? `<div style="margin-top: 10px; color: #4a5568; font-style: italic;">💡 ${answer.explanation}</div>` : ''}
+        `;
+        
+        answersContent.appendChild(answerDiv);
+    });
+}
+
+function toggleAnswersReview() {
+    if (answersReview.style.display === 'none' || answersReview.style.display === '') {
+        answersReview.style.display = 'block';
+        toggleAnswersBtn.textContent = '隱藏解答';
+    } else {
+        answersReview.style.display = 'none';
+        toggleAnswersBtn.textContent = '查看解答';
+    }
+}
+
+function showError(message) {
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+}
+
+// ================================
+// Firebase Firestore 數據結構參考
+// ================================
+/*
+根據您提供的截圖，Firestore 中 'Questions' 集合的每個文檔應包含：
+{
+    answer: "C",  // 正確答案的字母 (A, B, C, D)
+    explanation: "答案解析說明", // 可選的解析文字
+    options: {    // 選項物件，包含 A, B, C, D 屬性
+        A: "選項A文字",
+        B: "選項B文字",
+        C: "選項C文字",
+        D: "選項D文字"
+    },
+    text: "問題文字", // 題目文字
+    type: "multiple_choice" // 題目類型 (如果有的話)
+}
+*/
