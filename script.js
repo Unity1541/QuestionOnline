@@ -18,7 +18,7 @@ let db;
 let questions = [];
 let currentQuestionIndex = 0;
 let score = 0;
-let timeLeft = 60;
+let timeLeft = 120;
 let timer = null;
 let selectedAnswer = null;
 let isFirebaseConfigured = false;
@@ -196,7 +196,7 @@ async function startQuiz() {
         
         currentQuestionIndex = 0;
         score = 0;
-        timeLeft = 60;
+        timeLeft = 120;
         selectedAnswer = null;
         userAnswers = [];
         
@@ -449,13 +449,13 @@ function endQuiz() {
     
     let message = "";
     if (score >= 80) {
-        message = "太厲害了！你是真正的動漫達人！🎉";
+        message = "太厲害了！大師級人物！🎉";
     } else if (score >= 60) {
-        message = "很不錯！你對動漫很有了解！👏";
+        message = "很不錯！有複習！👏";
     } else if (score >= 40) {
         message = "還可以！繼續努力學習吧！📚";
     } else {
-        message = "加油！多看一些動漫作品吧！💪";
+        message = "加油！再努力！💪";
     }
     
     resultMessageDisplay.textContent = message;
@@ -467,7 +467,7 @@ function endQuiz() {
 function restartQuiz() {
     currentQuestionIndex = 0;
     score = 0;
-    timeLeft = 60;
+    timeLeft = 120;
     selectedAnswer = null;
     userAnswers = [];
     clearInterval(timer); 

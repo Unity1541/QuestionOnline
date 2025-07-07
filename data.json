@@ -1,0 +1,184 @@
+{
+    "Questions": {
+        "question001": {
+            "type": "multiple_choice",
+            "text": "Choose the correct sentence regarding verb tense:",
+            "options": {
+                "A": "Yesterday, I go to the store.",
+                "B": "Tomorrow, I went to the park.",
+                "C": "Last week, she will visit her grandma.",
+                "D": "Next year, they are going to build a new house."
+            },
+            "answer": "D",
+            "explanation": "Option D correctly uses 'are going to build' for a future plan. Options A, B, and C have tense inconsistencies with their time indicators."
+        },
+        "question002": {
+            "type": "multiple_choice",
+            "text": "What is the most suitable synonym for 'proficient'?",
+            "options": {
+                "A": "Inexperienced",
+                "B": "Competent",
+                "C": "Awkward",
+                "D": "Reluctant"
+            },
+            "answer": "B",
+            "explanation": "'Proficient' means skilled and experienced in something. 'Competent' is the closest synonym, meaning having the necessary ability, knowledge, or skill to do something successfully."
+        },
+        "question003": {
+            "type": "multiple_choice",
+            "text": "Fill in the blank: 'The news _______ surprising to everyone.'",
+            "options": {
+                "A": "were",
+                "B": "are",
+                "C": "was",
+                "D": "have been"
+            },
+            "answer": "C",
+            "explanation": "'News' is an uncountable noun in English and takes a singular verb, therefore 'was' is correct."
+        },
+        "question004": {
+            "type": "multiple_choice",
+            "text": "What does 'alleviate' mean?",
+            "options": {
+                "A": "To make something more severe",
+                "B": "To ignore a problem",
+                "C": "To make suffering, deficiency, or a problem less severe",
+                "D": "To increase the intensity of a feeling"
+            },
+            "answer": "C",
+            "explanation": "'Alleviate' means to make (suffering, deficiency, or a problem) less severe."
+        },
+        "question005": {
+            "type": "multiple_choice",
+            "text": "Choose the sentence with the correct use of 'fewer' or 'less':",
+            "options": {
+                "A": "I have less problems than you.",
+                "B": "There are less students today.",
+                "C": "We need fewer sugar in our coffee.",
+                "D": "She has fewer books than her brother."
+            },
+            "answer": "D",
+            "explanation": "'Fewer' is used for countable nouns (books, students, problems). 'Less' is used for uncountable nouns (sugar, water, time)."
+        },
+        "question006": {
+            "type": "multiple_choice",
+            "text": "Which word is an antonym for 'augment'?",
+            "options": {
+                "A": "Increase",
+                "B": "Enhance",
+                "C": "Decrease",
+                "D": "Amplify"
+            },
+            "answer": "C",
+            "explanation": "'Augment' means to make (something) greater by adding to it; increase. 'Decrease' is its direct antonym."
+        },
+        "question007": {
+            "type": "multiple_choice",
+            "text": "Identify the sentence with correct parallel structure:",
+            "options": {
+                "A": "He likes to cook, to read, and cycling.",
+                "B": "She is good at singing, dancing, and playing the piano.",
+                "C": "They decided to run, jumping, and swim.",
+                "D": "The job requires efficiency, dedication, and being punctual."
+            },
+            "answer": "B",
+            "explanation": "Parallel structure requires that items in a series have the same grammatical form. All items in option B are gerunds."
+        },
+        "question008": {
+            "type": "multiple_choice",
+            "text": "What does 'ostentatious' mean?",
+            "options": {
+                "A": "Simple and unassuming",
+                "B": "Intended to attract notice and impress others; showy",
+                "C": "Hidden or secretive",
+                "D": "Economical and frugal"
+            },
+            "answer": "B",
+            "explanation": "'Ostentatious' means characterized by vulgar or pretentious display; designed to impress or attract notice."
+        },
+        "question009": {
+            "type": "multiple_choice",
+            "text": "Choose the correct relative pronoun:",
+            "options": {
+                "A": "This is the man who's dog bit me.",
+                "B": "She met the artist, whom painted her portrait.",
+                "C": "The car, which windows were broken, was towed.",
+                "D": "He is the person whom I believe is responsible."
+            },
+            "answer": "C",
+            "explanation": "Option C uses 'which' correctly in a non-restrictive clause modifying 'car'. Note that 'whose' should be used for possession of a person, and 'whom' is generally for the object of a verb or preposition."
+        },
+        "question010": {
+            "type": "multiple_choice",
+            "text": "Which option best defines 'benevolent'?",
+            "options": {
+                "A": "Wishing to do good; kind and charitable",
+                "B": "Tending to be angry or aggressive",
+                "C": "Unable to be trusted; dishonest",
+                "D": "Lacking interest or concern"
+            },
+            "answer": "A",
+            "explanation": "'Benevolent' means well meaning and kindly, or wishing to do good."
+        },
+        "question011": {
+            "type": "multiple_choice",
+            "text": "Choose the sentence with the correct comma placement for an introductory phrase:",
+            "options": {
+                "A": "After the long meeting we went home.",
+                "B": "After the long meeting, we went home.",
+                "C": "After, the long meeting we went home.",
+                "D": "After the long meeting we, went home."
+            },
+            "answer": "B",
+            "explanation": "A comma should be used to separate an introductory phrase (like 'After the long meeting') from the main clause of the sentence."
+        },
+        "question012": {
+            "type": "multiple_choice",
+            "text": "What is the meaning of 'ubiquitous'?",
+            "options": {
+                "A": "Rare or uncommon",
+                "B": "Existing or being everywhere at the same time",
+                "C": "Ancient and historical",
+                "D": "Difficult to find or locate"
+            },
+            "answer": "B",
+            "explanation": "'Ubiquitous' means present, appearing, or found everywhere."
+        },
+        "question013": {
+            "type": "multiple_choice",
+            "text": "Fill in the blank: 'Neither John ______ Mary was at the party.'",
+            "options": {
+                "A": "or",
+                "B": "nor",
+                "C": "and",
+                "D": "but"
+            },
+            "answer": "B",
+            "explanation": "The correlative conjunction 'neither...nor' is used to connect two negative alternatives."
+        },
+        "question014": {
+            "type": "multiple_choice",
+            "text": "Which word means 'to put an end to; abolish'?",
+            "options": {
+                "A": "Initiate",
+                "B": "Establish",
+                "C": "Abolish",
+                "D": "Preserve"
+            },
+            "answer": "C",
+            "explanation": "'Abolish' means to formally put an end to (a system, practice, or institution)."
+        },
+        "question015": {
+            "type": "multiple_choice",
+            "text": "Choose the sentence with the correct use of apostrophes for possession:",
+            "options": {
+                "A": "The students' books are on the table.",
+                "B": "The student's books are on the table.",
+                "C": "The students books' are on the table.",
+                "D": "The student book's are on the table."
+            },
+            "answer": "A",
+            "explanation": "For a plural noun ending in 's' (like 'students'), the apostrophe is placed after the 's' to show plural possession. Option B implies one student."
+        }
+    }
+}
