@@ -24,6 +24,9 @@ let selectedAnswer = null;
 let isFirebaseConfigured = false;
 let userAnswers = []; // 儲存使用者的答案
 
+// 全域選項鍵值，確保整個程式都能使用
+const OPTION_KEYS = ['A', 'B', 'C', 'D'];
+
 // DOM 元素引用
 const bgAnimation = document.getElementById('bgAnimation');
 const firebaseConfigDiv = document.getElementById('firebaseConfig');
@@ -102,6 +105,18 @@ const answerMap = {
     "C": 2,
     "D": 3
 };
+
+// ================================
+// 輔助函數：處理範例題目
+// ================================
+function processSampleQuestions() {
+    return sampleQuestions.map(q => ({
+        question: q.text,
+        options: OPTION_KEYS.map(key => q.options[key]),
+        correct: answerMap[q.answer],
+        explanation: q.explanation
+    }));
+}
 
 // ================================
 // 事件監聽器 (當 DOM 內容載入完成後)
@@ -221,24 +236,44 @@ async function startQuiz() {
     }
 }
 
-// 修正後的 loadQuestions 函數
+// 完全重寫的 loadQuestions 函數
 async function loadQuestions() {
-    const processedQuestions = [];
-    const optionKeys = ['A', 'B', 'C', 'D']; // 移到函數開頭，讓整個函數都能使用
+    console.log("開始載入題目...");
     
     if (isFirebaseConfigured) {
         try {
+            console.log("嘗試從 Firebase 載入題目...");
             const snapshot = await db.collection('Questions').get();
+            
+            if (snapshot.empty) {
+                console.log("Firebase Questions 集合為空，使用範例題目");
+                questions = processSampleQuestions();
+                questions = shuffleArray(questions);
+                return;
+            }
+
+            const processedQuestions = [];
 
             snapshot.forEach(doc => {
+                console.log("處理文檔:", doc.id);
                 const data = doc.data();
+                console.log("文檔資料:", data);
+                
+                // 檢查必要欄位
+                if (!data.text || !data.options || !data.answer) {
+                    console.warn(`跳過無效題目 (ID: ${doc.id}): 缺少必要欄位`, data);
+                    return;
+                }
+
                 const questionOptions = [];
                 const firestoreOptions = data.options;
                 
                 // 將物件形式的 options 轉換為陣列，並確保順序
-                optionKeys.forEach(key => {
+                OPTION_KEYS.forEach(key => {
                     if (firestoreOptions && firestoreOptions[key]) {
                         questionOptions.push(firestoreOptions[key]);
+                    } else {
+                        console.warn(`題目 ${doc.id} 缺少選項 ${key}`);
                     }
                 });
 
@@ -247,55 +282,47 @@ async function loadQuestions() {
                 const correctAnswerKey = data.answer;
                 if (correctAnswerKey && answerMap.hasOwnProperty(correctAnswerKey)) {
                     correctIndex = answerMap[correctAnswerKey];
+                } else {
+                    console.warn(`題目 ${doc.id} 答案格式錯誤: ${correctAnswerKey}`);
                 }
 
                 // 確保題目、選項和正確答案都有效才加入
-                if (data.text && questionOptions.length === 4 && correctIndex !== -1) { // 假設每題有4個選項
+                if (data.text && questionOptions.length === 4 && correctIndex !== -1) {
                     processedQuestions.push({
                         question: data.text,
                         options: questionOptions,
                         correct: correctIndex,
                         explanation: data.explanation || "暫無解析"
                     });
+                    console.log(`成功處理題目 ${doc.id}`);
                 } else {
-                    console.warn(`跳過無效題目 (ID: ${doc.id}): `, data);
+                    console.warn(`跳過無效題目 (ID: ${doc.id}): 資料不完整`, {
+                        hasText: !!data.text,
+                        optionsLength: questionOptions.length,
+                        correctIndex: correctIndex
+                    });
                 }
             });
             
             if (processedQuestions.length === 0) {
-                console.log("Firestore 中沒有有效題目，使用範例題目。");
-                // 處理範例題目以匹配預期格式
-                questions = sampleQuestions.map(q => ({
-                    question: q.text,
-                    options: optionKeys.map(key => q.options[key]),
-                    correct: answerMap[q.answer],
-                    explanation: q.explanation
-                }));
+                console.log("Firebase 中沒有有效題目，使用範例題目");
+                questions = processSampleQuestions();
             } else {
+                console.log(`成功載入 ${processedQuestions.length} 道題目`);
                 questions = processedQuestions;
             }
         } catch (error) {
             console.error("從 Firestore 載入題目失敗:", error);
             showError("從 Firebase 載入題目失敗，正在使用內建範例題目。");
-            // 處理範例題目以匹配預期格式
-            questions = sampleQuestions.map(q => ({
-                question: q.text,
-                options: optionKeys.map(key => q.options[key]),
-                correct: answerMap[q.answer],
-                explanation: q.explanation
-            }));
+            questions = processSampleQuestions();
         }
     } else {
-        // 如果 Firebase 未配置，直接使用範例題目
-        questions = sampleQuestions.map(q => ({
-            question: q.text,
-            options: optionKeys.map(key => q.options[key]),
-            correct: answerMap[q.answer],
-            explanation: q.explanation
-        }));
+        console.log("Firebase 未配置，使用範例題目");
+        questions = processSampleQuestions();
     }
     
     questions = shuffleArray(questions);
+    console.log("題目載入完成，總共:", questions.length, "道題目");
 }
 
 function shuffleArray(array) {
@@ -491,15 +518,14 @@ function generateAnswersReview() {
         answerDiv.className = `answer-item ${answer.isCorrect ? 'correct-answer' : 'wrong-answer'}`;
         
         let optionsHtml = '';
-        const optionLetters = ['A', 'B', 'C', 'D']; // 用於顯示選項字母
 
         // 轉換題目中儲存的 options 陣列為物件形式，方便按字母訪問
         const currentQuestionOptions = {};
         answer.options.forEach((opt, i) => {
-            currentQuestionOptions[optionLetters[i]] = opt;
+            currentQuestionOptions[OPTION_KEYS[i]] = opt;
         });
 
-        optionLetters.forEach((letter, optionIndex) => {
+        OPTION_KEYS.forEach((letter, optionIndex) => {
             let optionText = currentQuestionOptions[letter];
             let optionClass = 'review-option';
             let prefix = '';
