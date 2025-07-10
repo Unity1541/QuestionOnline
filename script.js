@@ -51,7 +51,6 @@ const restartQuizBtn2 = document.getElementById('restartQuizBtn2'); // 新增第
 const answersReview = document.getElementById('answersReview');
 const answersContent = document.getElementById('answersContent');
 
-
 // 等級系統
 const levels = [
     { name: "初心者", minScore: 0, color: "#9ca3af" },
@@ -222,12 +221,14 @@ async function startQuiz() {
     }
 }
 
+// 修正後的 loadQuestions 函數
 async function loadQuestions() {
     const processedQuestions = [];
+    const optionKeys = ['A', 'B', 'C', 'D']; // 移到函數開頭，讓整個函數都能使用
+    
     if (isFirebaseConfigured) {
         try {
             const snapshot = await db.collection('Questions').get();
-            const optionKeys = ['A', 'B', 'C', 'D']; // 定義選項順序
 
             snapshot.forEach(doc => {
                 const data = doc.data();
@@ -286,7 +287,6 @@ async function loadQuestions() {
         }
     } else {
         // 如果 Firebase 未配置，直接使用範例題目
-        const optionKeys = ['A', 'B', 'C', 'D'];
         questions = sampleQuestions.map(q => ({
             question: q.text,
             options: optionKeys.map(key => q.options[key]),
@@ -297,7 +297,6 @@ async function loadQuestions() {
     
     questions = shuffleArray(questions);
 }
-
 
 function shuffleArray(array) {
     const shuffled = [...array];
